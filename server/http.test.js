@@ -27,7 +27,7 @@ async function serve(opts = {}) {
       resolve(res.statusCode);
     }).on('error', reject).end();
   });
-  return { db, call, app: app_, withHost, close: () => server.close() };
+  return { db, base, call, app: app_, withHost, close: () => server.close() };
 }
 
 test('password: API locked until login; wrong password rejected; logout ends session', async () => {
@@ -154,4 +154,48 @@ test('unexpected errors are logged, not sent to the browser', async () => {
     const body = await r.json();
     assert.doesNotMatch(body.error, /card_usage|no such/i);
   } finally { console.error = orig; s.close(); }
+});
+
+test('restore from an uploaded backup file; junk files are rejected and nothing changes', async () => {
+  const { mkdtempSync, readFileSync: rf } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { DatabaseSync } = await import('node:sqlite');
+  const tmp = mkdtempSync(join(tmpdir(), 'mtg-upload-test-'));
+  process.env.MTG_SAFETY_DIR = join(tmp, 'safety');
+
+  // A "Mac" database with one deck, saved as a backup file.
+  const mac = openDb(':memory:');
+  mac.prepare("INSERT INTO decks (name) VALUES ('From the Mac')").run();
+  mac.exec(`VACUUM INTO '${join(tmp, 'mtg.sqlite')}'`);
+  const other = new DatabaseSync(join(tmp, 'other.sqlite'));
+  other.exec('CREATE TABLE notes (x)');
+  other.close();
+
+  const s = await serve();
+  const upload = (bytes, name) => {
+    const fd = new FormData();
+    fd.append('file', new Blob([bytes]), name);
+    return fetch(s.base + '/api/backups/upload', { method: 'POST', headers: { 'X-MTG-Client': '1' }, body: fd });
+  };
+  try {
+    s.db.prepare("INSERT INTO decks (name) VALUES ('On the server')").run();
+    const names = () => s.db.prepare('SELECT name FROM decks').all().map((d) => d.name);
+
+    assert.equal((await upload(Buffer.from('hello, not a database'), 'notes.txt')).status, 400);
+    const wrong = await upload(rf(join(tmp, 'other.sqlite')), 'other.sqlite');
+    assert.equal(wrong.status, 400);
+    assert.match((await wrong.json()).error, /not an MTG Collector backup/);
+    assert.deepEqual(names(), ['On the server']);
+
+    const r = await upload(rf(join(tmp, 'mtg.sqlite')), 'mtg.sqlite');
+    assert.equal(r.status, 200);
+    assert.match((await r.json()).safetyCopy, /before-restore-/);
+    assert.deepEqual(names(), ['From the Mac']);
+
+    // Without the client header (a cross-site form post), uploads are refused.
+    const fd = new FormData();
+    fd.append('file', new Blob([rf(join(tmp, 'mtg.sqlite'))]), 'mtg.sqlite');
+    assert.equal((await fetch(s.base + '/api/backups/upload', { method: 'POST', body: fd })).status, 403);
+  } finally { s.close(); delete process.env.MTG_SAFETY_DIR; }
 });

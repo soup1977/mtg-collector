@@ -1,7 +1,8 @@
 // The Express app, separate from startup so tests can run it against an in-memory database.
 import express from 'express';
 import multer from 'multer';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, resolve, basename, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { importCollection } from './importCollection.js';
@@ -12,7 +13,7 @@ import deckRoutes from './routes/decks.js';
 import changeRoutes from './routes/changes.js';
 import { getSettings, setSettings } from './settings.js';
 import { isRefreshing } from './prices.js';
-import { destinations, listBackups, runBackup, restoreBackup, backupManaged } from './backup.js';
+import { destinations, listBackups, runBackup, restoreBackup, restoreFromFile, backupManaged } from './backup.js';
 import { createAuth } from './auth.js';
 import { FORMATS } from './validate.js';
 import { handle, httpError, text } from './http.js';
@@ -54,6 +55,17 @@ export function createApp(db, { password = '', secret = 'dev', allowedHosts = []
   app.get('/api/backups', handle(() => ({ managed: backupManaged(), destinations: destinations(getSettings(db)), backups: listBackups(db) })));
   app.post('/api/backups', handle(() => runBackup(db)));
   app.post('/api/backups/restore', handle((req) => restoreBackup(db, req.body || {})));
+
+  // Restore from a backup file uploaded from the browser (e.g. mtg.sqlite from another computer).
+  const dbUpload = multer({ dest: tmpdir(), limits: { fileSize: 500 * 1024 * 1024, files: 1, fields: 0 } });
+  app.post('/api/backups/upload', dbUpload.single('file'), handle((req) => {
+    if (!req.file) throw httpError(400, 'Choose a backup file (mtg.sqlite)');
+    try {
+      return { restored: req.file.originalname, from: 'uploaded file', ...restoreFromFile(db, req.file.path) };
+    } finally {
+      rmSync(req.file.path, { force: true });
+    }
+  }));
 
   const bodyText = (req) => (req.file ? req.file.buffer.toString('utf8') : String(req.body?.text || ''));
 

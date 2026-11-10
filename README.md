@@ -55,11 +55,9 @@ Pushing to `main` runs the tests and publishes `ghcr.io/soup1977/mtg-collector:l
 | `/backups` | `/mnt/user/backups/mtg-collector` | daily backups (Backup settings are fixed to this folder in the container) |
 | `APP_PASSWORD` | | required |
 
-**Moving your data from the Mac:** in the Mac app, **Settings → Back up now**, then stop the app. Copy the
-backup's `mtg.sqlite` into `/mnt/cache/appdata/mtg-collector/` *before* the first Compose Up (the container fixes
-its ownership on start). Don't copy `data/mtg.sqlite` from a running app: recent changes sit in `mtg.sqlite-wal`
-until it closes. Or start empty, copy the whole backup folder into `/mnt/user/backups/mtg-collector/` and use
-**Settings → Restore**.
+**Moving your data from the Mac:** in the Mac app, **Settings → Back up now**, then stop it. Open the app on
+Unraid, **Settings → Restore → From a file on this computer**, and pick that backup's `mtg.sqlite`. The file is
+checked first (it must be an intact MTG Collector database), and a safety copy of the current state is saved.
 
 **Updating:** push to `main`, wait for the GitHub Action to finish, then in Compose Manager **Update Stack**
 (pulls the new image and restarts).
@@ -157,7 +155,7 @@ cost to complete) and as the collection total in the header.
 ## Backups
 
 **Settings → Backups.** Each backup is a folder named `MTG Collector Backups/<date_time>/` containing:
-- `mtg.sqlite`: everything (restore it from Settings)
+- `mtg.sqlite`: everything (restore it from Settings, from the backup list or by uploading the file)
 - `collection.csv`: Archidekt-format collection
 - `decks/*.txt`: every deck as a list (Considering cards under `[Maybeboard]`)
 

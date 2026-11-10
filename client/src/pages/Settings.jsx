@@ -47,6 +47,21 @@ function Backups({ s, save, onChange }) {
     finally { setBusy(false); }
   };
 
+  const restoreUpload = async (file) => {
+    if (!file) return;
+    if (!confirm(`Restore from "${file.name}"?\n\nThis replaces your collection, decks and settings with that file. A safety copy of the current state is saved first.`)) return;
+    setBusy(true); setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.post('/api/backups/upload', fd);
+      await reloadSettings();
+      onChange?.();
+      setMsg({ ok: true, text: `Restored ${r.restored}. Safety copy of the previous state: ${r.safetyCopy}` });
+    } catch (e) { setMsg({ ok: false, text: e.message }); }
+    finally { setBusy(false); }
+  };
+
   const enabledOk = data?.destinations.some((d) => d.enabled && d.available);
   const backups = data?.backups || [];
 
@@ -98,9 +113,16 @@ function Backups({ s, save, onChange }) {
       {!enabledOk && data && <p className="notice small">Turn on at least one available destination to back up.</p>}
       {msg && <p className={msg.ok ? 'flash ok' : 'flash bad'}>{msg.text}</p>}
 
+      <h3>Restore</h3>
+      <div className="row">
+        <label className="small">
+          From a file on this computer (<span className="mono">mtg.sqlite</span> from a backup folder):{' '}
+          <input type="file" accept=".sqlite,.db,application/x-sqlite3,application/vnd.sqlite3" disabled={busy}
+            onChange={(e) => { restoreUpload(e.target.files[0]); e.target.value = ''; }} />
+        </label>
+      </div>
       {backups.length > 0 && (
         <>
-          <h3>Restore</h3>
           <table>
             <tbody>
               {(showAll ? backups : backups.slice(0, 5)).map((b) => (

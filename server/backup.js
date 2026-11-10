@@ -1,6 +1,7 @@
 // Backups: a consistent database snapshot plus human-readable exports, written into folders that a
 // cloud app (OneDrive, iCloud Drive) syncs. The live database never lives in a synced folder.
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -152,14 +153,40 @@ const TABLES = ['cards', 'collection_items', 'decks', 'deck_cards', 'collection_
 export function restoreBackup(db, { destination, name }) {
   const b = listBackups(db).find((x) => x.destination === destination && x.name === name);
   if (!b) throw Object.assign(new Error('Backup not found'), { status: 404 });
+  return { restored: b.name, from: b.label, ...restoreFromFile(db, b.file) };
+}
 
+/** Throws a 400 unless `file` is an intact MTG Collector database. */
+export function checkBackupFile(file) {
+  const bad = (m) => Object.assign(new Error(m), { status: 400 });
+  const head = Buffer.alloc(16);
+  const fd = openSync(file, 'r');
+  try { readSync(fd, head, 0, 16, 0); } finally { closeSync(fd); }
+  if (head.toString('latin1') !== 'SQLite format 3\0') throw bad('That file is not a database. Choose the mtg.sqlite file from a backup folder.');
+  let bk;
+  try {
+    bk = new DatabaseSync(file, { readOnly: true });
+    const ok = bk.prepare('PRAGMA quick_check').get();
+    if (Object.values(ok)[0] !== 'ok') throw bad('That database is damaged.');
+    const tables = new Set(bk.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((t) => t.name));
+    if (!['cards', 'collection_items', 'decks', 'deck_cards'].every((t) => tables.has(t))) {
+      throw bad('That database is not an MTG Collector backup.');
+    }
+  } catch (e) {
+    throw e.status ? e : bad(`Can't read that database: ${e.message}`);
+  } finally { bk?.close(); }
+}
+
+/** Replace the live data with the contents of a database file, after saving a safety copy. */
+export function restoreFromFile(db, file) {
+  checkBackupFile(file);
   const live = db.location();
   const safety = process.env.MTG_SAFETY_DIR || join(live ? dirname(live) : join(root, 'data'), 'pre-restore');
   mkdirSync(safety, { recursive: true });
   const safetyFile = join(safety, `before-restore-${stamp()}.sqlite`);
   db.exec(`VACUUM INTO '${safetyFile.replace(/'/g, "''")}'`);
 
-  db.exec(`ATTACH DATABASE '${b.file.replace(/'/g, "''")}' AS bk`);
+  db.exec(`ATTACH DATABASE '${file.replace(/'/g, "''")}' AS bk`);
   try {
     db.exec('PRAGMA foreign_keys = OFF');
     db.exec('BEGIN');
@@ -183,7 +210,7 @@ export function restoreBackup(db, { destination, name }) {
     db.exec('PRAGMA foreign_keys = ON');
     db.exec('DETACH DATABASE bk');
   }
-  return { restored: b.name, from: b.label, safetyCopy: safetyFile };
+  return { safetyCopy: safetyFile };
 }
 
 /** Back up automatically when the last backup is older than a day. Checked hourly. */
