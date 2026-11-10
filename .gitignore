@@ -1,0 +1,10 @@
+node_modules/
+data/
+client/dist/
+.DS_Store
+
+# Personal data: collection exports, deck lists and local config
+/*.csv
+/*.txt
+.mcp.json
+.env

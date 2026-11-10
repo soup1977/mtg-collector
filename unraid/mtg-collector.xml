@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!-- Unraid template. Copy to /boot/config/plugins/dockerMan/templates-user/my-mtg-collector.xml,
+     then Docker tab > Add Container > Template: mtg-collector. -->
+<Container version="2">
+  <Name>mtg-collector</Name>
+  <Repository>ghcr.io/soup1977/mtg-collector:latest</Repository>
+  <Registry>https://github.com/soup1977/mtg-collector/pkgs/container/mtg-collector</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/soup1977/mtg-collector</Support>
+  <Project>https://github.com/soup1977/mtg-collector</Project>
+  <Overview>Magic: The Gathering collection and deck tracker. Answers: which of my decks use this card?</Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3077]/</WebUI>
+  <ExtraParams></ExtraParams>
+  <Config Name="Web UI port" Target="3077" Default="3077" Mode="tcp" Description="Port for the web app." Type="Port" Display="always" Required="true" Mask="false">3077</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/cache/appdata/mtg-collector" Mode="rw" Description="Database. Keep this on the cache drive (or a cache-only appdata share): SQLite does not like /mnt/user." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/mtg-collector</Config>
+  <Config Name="Backups" Target="/backups" Default="/mnt/user/backups/mtg-collector" Mode="rw" Description="Daily backups (database snapshot, collection CSV, deck lists)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/backups/mtg-collector</Config>
+  <Config Name="Password" Target="APP_PASSWORD" Default="" Mode="" Description="Login password for the web app. Required." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User the app runs as (nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group the app runs as (users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="Time zone" Target="TZ" Default="America/Denver" Mode="" Description="Used for backup folder names." Type="Variable" Display="always" Required="false" Mask="false">America/Denver</Config>
+</Container>

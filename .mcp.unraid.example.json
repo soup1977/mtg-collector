@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "mtg-collector": {
+      "command": "ssh",
+      "args": ["root@tower", "docker", "exec", "-i", "-u", "99:100", "mtg-collector", "node", "--no-warnings", "server/mcp.js"]
+    }
+  }
+}

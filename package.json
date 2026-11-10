@@ -1,0 +1,31 @@
+{
+  "name": "mtg-collector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,client \"node --watch server/index.js\" \"vite client\"",
+    "build": "vite build client",
+    "start": "node server/index.js",
+    "import:collection": "node server/cli.js collection",
+    "import:deck": "node server/cli.js deck",
+    "test": "node --no-warnings --test server/*.test.js",
+    "mcp": "node --no-warnings server/mcp.js",
+    "claude:install": "node scripts/install-claude-desktop.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "csv-parse": "^7.0.3",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.2.1",
+    "concurrently": "^10.0.7",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5",
+    "vite": "^8.3.6"
+  }
+}
