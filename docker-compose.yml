@@ -1,0 +1,21 @@
+# MTG Collector on Unraid (Compose Manager plugin) or any Docker host.
+# Set APP_PASSWORD in the stack's .env file (Compose Manager: Edit Stack > ENV File):
+#   APP_PASSWORD=your-password
+services:
+  mtg-collector:
+    image: ghcr.io/soup1977/mtg-collector:latest
+    container_name: mtg-collector
+    restart: unless-stopped
+    ports:
+      - "3077:3077"
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in the .env file}
+      TZ: America/Denver
+      PUID: 99    # nobody
+      PGID: 100   # users
+    volumes:
+      # Keep the database on the cache drive: SQLite doesn't like /mnt/user.
+      - /mnt/cache/appdata/mtg-collector:/data
+      - /mnt/user/backups/mtg-collector:/backups
+    labels:
+      net.unraid.docker.webui: "http://[IP]:[PORT:3077]/"

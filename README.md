@@ -40,11 +40,13 @@ Tailscale or a VPN for access away from home.
 Pushing to `main` runs the tests and publishes `ghcr.io/soup1977/mtg-collector:latest` (GitHub Actions,
 [.github/workflows/docker.yml](.github/workflows/docker.yml)).
 
-**First install on Unraid:**
-1. Copy [unraid/mtg-collector.xml](unraid/mtg-collector.xml) to
-   `/boot/config/plugins/dockerMan/templates-user/my-mtg-collector.xml` on the Unraid flash drive.
-2. Docker tab → **Add Container** → Template: **mtg-collector**. Set a password, check the paths, Apply.
-3. Open `http://tower:3077`.
+**First install on Unraid (Compose Manager plugin):**
+1. Docker tab → **Add New Stack**, name it `mtg-collector`.
+2. **Edit Stack → Compose File**: paste [docker-compose.yml](docker-compose.yml).
+3. **Edit Stack → ENV File**: `APP_PASSWORD=your-password`.
+4. **Compose Up**, then open `http://tower:3077`.
+
+(Prefer Unraid templates? [unraid/mtg-collector.xml](unraid/mtg-collector.xml) does the same through **Add Container**.)
 
 | Container | Unraid | |
 |---|---|---|
@@ -53,11 +55,14 @@ Pushing to `main` runs the tests and publishes `ghcr.io/soup1977/mtg-collector:l
 | `/backups` | `/mnt/user/backups/mtg-collector` | daily backups (Backup settings are fixed to this folder in the container) |
 | `APP_PASSWORD` | | required |
 
-**Moving your data from the Mac:** stop the app on the Mac, copy `data/mtg.sqlite` into the appdata folder
-(e.g. over the network share) *before* the first start (the container fixes its ownership on start). Or start fresh and restore a backup: put a backup folder into `/mnt/user/backups/mtg-collector`
-and use **Settings → Restore**.
+**Moving your data from the Mac:** in the Mac app, **Settings → Back up now**, then stop the app. Copy the
+backup's `mtg.sqlite` into `/mnt/cache/appdata/mtg-collector/` *before* the first Compose Up (the container fixes
+its ownership on start). Don't copy `data/mtg.sqlite` from a running app: recent changes sit in `mtg.sqlite-wal`
+until it closes. Or start empty, copy the whole backup folder into `/mnt/user/backups/mtg-collector/` and use
+**Settings → Restore**.
 
-**Updating:** push to `main`, wait for the GitHub Action to finish, then Docker tab → **Check for updates** → apply.
+**Updating:** push to `main`, wait for the GitHub Action to finish, then in Compose Manager **Update Stack**
+(pulls the new image and restarts).
 
 **Claude (MCP) with the app on Unraid:** set up SSH keys to the server, then use
 [.mcp.unraid.example.json](.mcp.unraid.example.json) as your `.mcp.json` (Claude runs the MCP server inside the
